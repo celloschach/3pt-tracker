@@ -1,43 +1,74 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>3PT Tracker</title>
-  <link rel="stylesheet" href="style.css"/>
+  <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+  <div class="container">
+    <header>
+      <h1>3PT Tracker</h1>
+      <div class="top-controls">
+        <div class="date-controls">
+          <button id="prevDayBtn" title="Vorheriger Tag">◀</button>
+          <input type="date" id="datePicker" />
+          <button id="nextDayBtn" title="Nächster Tag">▶</button>
+        </div>
+        <div class="action-controls">
+          <button id="undoBtn" title="Undo letzte Änderung">Undo</button>
+          <button id="exportCsvBtn" title="CSV Export">Export CSV</button>
+          <button id="deleteDayBtn" title="Tag löschen">Tag löschen</button>
+        </div>
+      </div>
+    </header>
 
-  <div class="container"> 
-    <h1>3PT Tracker</h1>
+    <main>
+      <section class="session-area">
+        <div class="session-controls">
+          <label for="sessionSelect">Session</label>
+          <select id="sessionSelect"></select>
+          <button id="newSessionBtn">Neue Session</button>
+          <button id="renameSessionBtn" title="Umbenennen">✎</button>
+          <button id="deleteSessionBtn" title="Session löschen">🗑</button>
+        </div>
 
-    <h2 id="date"></h2>
+        <div class="stats">
+          <div id="sessionStats" class="stat-line"></div>
+          <div id="dayStats" class="stat-line"></div>
+          <div id="totalStats" class="stat-line"></div>
+          <div id="rollingAvg" class="stat-line small"></div>
+        </div>
 
-    <div class="session-controls">
-      <select id="sessionSelect"></select>
-      <button onclick="newSession()">Neue Session</button>
-    </div>
+        <div class="hit-miss">
+          <button id="hitBtn" class="hit">Treffer</button>
+          <button id="missBtn" class="miss">Daneben</button>
+        </div>
 
-    <div class="stats">
-      <div id="sessionStats"></div>
-      <div id="dayStats"></div>
-      <div id="totalStats"></div>
-    </div>
+        <div class="session-notes">
+          <label for="notes">Notiz (Session):</label>
+          <input id="notes" placeholder="z. B. Halle, müde, Wind..." />
+          <button id="saveNotesBtn">Speichern</button>
+        </div>
+      </section>
 
-    <div class="buttons">
-      <button class="hit" onclick="hit()">Treffer</button>
-      <button class="miss" onclick="miss()">Daneben</button>
-    </div>
+      <section class="charts">
+        <h3>Session Verlauf (ausgewählter Tag)</h3>
+        <canvas id="sessionChart"></canvas>
 
-    <h3>Session Verlauf</h3>
-    <canvas id="sessionChart"></canvas>
+        <h3>Tages Verlauf (alle Tage)</h3>
+        <canvas id="dayChart"></canvas>
+      </section>
+    </main>
 
-    <h3>Tages Verlauf</h3>
-    <canvas id="dayChart"></canvas>
+    <footer>
+      <small>Local only — Daten werden in deinem Browser gespeichert.</small>
+    </footer>
   </div>
 
-<script src="script.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
-
