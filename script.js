@@ -285,36 +285,71 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- SIMPLE CHARTS (wie erstes script) ---
   function renderSessionChart() {
-    if (sessionChartInstance) sessionChartInstance.destroy();
-    const labels = (db[selectedDate].sessions || []).map(s=>s.name);
-    const data = (db[selectedDate].sessions || []).map(s=> s.attempts ? Math.round(s.made/s.attempts*100) : 0);
 
-    sessionChartInstance = new Chart(sessionChartEl, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Session Quote %',
-          data,
-          fill: false,
-          tension: 0.2,
-          pointRadius: 4,
-          borderWidth: 2
-        }]
-      },
-      options: {
-        responsive: true,
-        scales: {
-          y: {
-            min: 0,
-            max: 100,
-            title: { display: true, text: 'Quote %' }
+  if (sessionChartInstance) sessionChartInstance.destroy();
+  if (!currentSessionId) return;
+
+  const session = db[selectedDate].sessions.find(s => s.id === currentSessionId);
+  if (!session || !session.shots || session.shots.length === 0) return;
+
+  let made = 0;
+  let attempts = 0;
+
+  const data = [];
+  const labels = [];
+
+  session.shots.forEach((shot, i) => {
+
+    attempts++;
+
+    if (shot) made++;
+
+    const quote = Math.round((made / attempts) * 100);
+
+    data.push(quote);
+    labels.push(i + 1);
+
+  });
+
+  sessionChartInstance = new Chart(sessionChartEl, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Session Quote %',
+        data: data,
+        tension: 0.2,
+        pointRadius: 2,
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          min: 0,
+          max: 100,
+          title: {
+            display: true,
+            text: 'Quote %'
           }
         },
-        plugins: { legend: { display: false } }
+        x: {
+          title: {
+            display: true,
+            text: 'Wurf'
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          display: false
+        }
       }
-    });
-  }
+    }
+  });
+}
+
 
   function renderDayChart() {
     if (dayChartInstance) dayChartInstance.destroy();
