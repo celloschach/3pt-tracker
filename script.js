@@ -1,6 +1,6 @@
 // script.js
 document.addEventListener('DOMContentLoaded', () => {
-  const STORAGE_KEY = 'shottracker_v5';
+  const STORAGE_KEY = 'shottracker_v6';
 
   // load DB
   let db = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
@@ -31,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const deleteDayBtn = document.getElementById('deleteDayBtn');
   const notesInput = document.getElementById('notes');
   const saveNotesBtn = document.getElementById('saveNotesBtn');
+  const pastDaysListEl = document.getElementById('pastDaysList');
 
   // state
   let selectedDate = new Date().toISOString().slice(0,10);
@@ -100,7 +101,6 @@ document.addEventListener('DOMContentLoaded', () => {
     selectedDate = newDate;
     datePicker.value = selectedDate;
     ensureDay(selectedDate);
-    // choose first session if none selected
     const sessions = db[selectedDate].sessions;
     currentSessionId = sessions.length ? sessions[0].id : null;
     render();
@@ -255,6 +255,35 @@ document.addEventListener('DOMContentLoaded', () => {
     URL.revokeObjectURL(url);
   }
 
+  // render past days list
+  function renderPastDaysList() {
+    pastDaysListEl.innerHTML = '';
+    const keys = Object.keys(db).sort().reverse(); // newest first
+    if (keys.length === 0) {
+      pastDaysListEl.textContent = 'Noch keine Einträge';
+      return;
+    }
+    keys.forEach(day => {
+      const totals = totalForDay(day);
+      const item = document.createElement('div');
+      item.className = 'past-item';
+      const btn = document.createElement('button');
+      btn.textContent = day;
+      btn.dataset.day = day;
+      btn.addEventListener('click', (e) => {
+        changeDate(e.target.dataset.day);
+      });
+      const count = document.createElement('div');
+      count.className = 'count';
+      count.textContent = `${totals.attempts} Würfe`;
+      item.appendChild(btn);
+      item.appendChild(count);
+      // highlight current
+      if (day === selectedDate) item.style.outline = '2px solid rgba(46,204,113,0.12)';
+      pastDaysListEl.appendChild(item);
+    });
+  }
+
   // rendering
   function render() {
     ensureDay(selectedDate);
@@ -292,7 +321,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // total stats
     const all = totalAllDays();
-    totalStatsEl.textContent = `Gesamt: ${all.made} / ${all.attempts} (${formatPct(all.made, all.attempts)})`;
+    totalStatsEl.textContent = `Gesamt: ${all.made} / ${all.attempts} (${formatPct(all.made, all.atempts)})`;
 
     // rolling
     const rolling = computeRollingAverage(selectedDate, 7);
@@ -308,6 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     renderSessionChart();
     renderDayChart();
+    renderPastDaysList();
   }
 
   // Session chart: shot-by-shot (current session only)
@@ -340,6 +370,13 @@ document.addEventListener('DOMContentLoaded', () => {
       data = [0];
     }
 
+    // determine tick step
+    const shotCount = labels.length === 1 && labels[0] === 0 ? 0 : labels.length;
+    let step = 1;
+    if (shotCount > 50) step = 10;
+    else if (shotCount > 20) step = 5;
+    else step = 1;
+
     sessionChartInstance = new Chart(ctx, {
       type: 'line',
       data: {
@@ -359,7 +396,19 @@ document.addEventListener('DOMContentLoaded', () => {
         maintainAspectRatio: false,
         scales: {
           y: { min: 0, max: 100, title: { display: true, text: 'Quote %' } },
-          x: { ticks: { autoSkip: false }, title: { display: true, text: 'Wurf #' } }
+          x: {
+            ticks: {
+              autoSkip: false,
+              callback: function(value, index) {
+                // always show last label
+                const lastIndex = this.getTicks ? this.getTicks().length - 1 : (labels.length - 1);
+                if (index === lastIndex) return value;
+                if (step <= 1) return value;
+                return (index % step === 0) ? value : '';
+              }
+            },
+            title: { display: true, text: 'Wurf #' }
+          }
         },
         plugins: { legend: { display: false } }
       }
@@ -405,7 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // boot: migrate old data and ensure at least one session today
   (function boot() {
-    // migrate: ensure shots arrays exist for all sessions
+    // migrate: ensure structure
     Object.keys(db).forEach(dayKey => {
       db[dayKey].sessions.forEach(s => {
         if (!Array.isArray(s.shots)) s.shots = [];
@@ -429,10 +478,11 @@ document.addEventListener('DOMContentLoaded', () => {
     render();
   })();
 
-  // expose for debugging
+  // expose debug
   window._shottracker = {
     get db() { return db; },
     persist,
     exportCsv
   };
 });
+
