@@ -283,29 +283,35 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDayChart();
   }
 
+  // --- SIMPLE CHARTS (wie erstes script) ---
   function renderSessionChart() {
     if (sessionChartInstance) sessionChartInstance.destroy();
     const labels = (db[selectedDate].sessions || []).map(s=>s.name);
     const data = (db[selectedDate].sessions || []).map(s=> s.attempts ? Math.round(s.made/s.attempts*100) : 0);
-    const counts = (db[selectedDate].sessions || []).map(s=>s.attempts);
 
     sessionChartInstance = new Chart(sessionChartEl, {
-      type: 'bar',
+      type: 'line',
       data: {
         labels,
-        datasets: [
-          { label: 'Quote %', data, yAxisID:'y1' },
-          { label: 'Würfe', data: counts, yAxisID:'y2' }
-        ]
+        datasets: [{
+          label: 'Session Quote %',
+          data,
+          fill: false,
+          tension: 0.2,
+          pointRadius: 4,
+          borderWidth: 2
+        }]
       },
       options: {
-        responsive:true,
-        interaction:{mode:'index', intersect:false},
+        responsive: true,
         scales: {
-          y1: { type:'linear', position:'left', title:{display:true,text:'Quote %'} },
-          y2: { type:'linear', position:'right', title:{display:true,text:'Würfe'}, grid:{drawOnChartArea:false} }
+          y: {
+            min: 0,
+            max: 100,
+            title: { display: true, text: 'Quote %' }
+          }
         },
-        plugins: { legend: { position: 'bottom' } }
+        plugins: { legend: { display: false } }
       }
     });
   }
@@ -317,35 +323,34 @@ document.addEventListener('DOMContentLoaded', () => {
       const t = totalForDay(d);
       return t.attempts ? Math.round(t.made/t.attempts*100) : 0;
     });
-    const rolling = dayKeys.map((d,i=>{
-      const sliceStart = Math.max(0, i-6);
-      const slice = dayKeys.slice(sliceStart, i+1);
-      let made=0, attempts=0;
-      slice.forEach(x => {
-        db[x].sessions.forEach(s=>{
-          made += s.made; attempts += s.attempts;
-        });
-      });
-      return attempts ? Math.round(made/attempts*100) : null;
-    }));
 
     dayChartInstance = new Chart(dayChartEl, {
       type: 'line',
       data: {
         labels: dayKeys,
-        datasets: [
-          { label: 'Tagesquote %', data: pctData, fill:false, tension:0.2 },
-          { label: '7-Tage Durchschnitt %', data: rolling, fill:false, tension:0.2, borderDash: [6,4] }
-        ]
+        datasets: [{
+          label: 'Tages Quote %',
+          data: pctData,
+          fill: false,
+          tension: 0.2,
+          pointRadius: 3,
+          borderWidth: 2
+        }]
       },
       options: {
-        responsive:true,
-        interaction:{mode:'index', intersect:false},
-        plugins:{ legend:{position:'bottom'} },
-        scales:{ y: { title:{display:true,text:'Quote %'} } }
+        responsive: true,
+        scales: {
+          y: {
+            min: 0,
+            max: 100,
+            title: { display: true, text: 'Quote %' }
+          }
+        },
+        plugins: { legend: { display: false } }
       }
     });
   }
+  // --- /SIMPLE CHARTS ---
 
   // initial boot
   (function boot(){
