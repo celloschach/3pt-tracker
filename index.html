@@ -55,12 +55,17 @@
       </section>
 
       <section class="charts">
-        <h3>Session Verlauf (ausgewählter Tag)</h3>
-        <canvas id="sessionChart"></canvas>
+        <h3>Session Verlauf (aktuelle Session)</h3>
+        <div class="chart-wrap"><canvas id="sessionChart"></canvas></div>
 
         <h3>Tages Verlauf (alle Tage)</h3>
-        <canvas id="dayChart"></canvas>
+        <div class="chart-wrap"><canvas id="dayChart"></canvas></div>
       </section>
+
+      <aside class="past-days">
+        <h3>Vergangene Tage</h3>
+        <div id="pastDaysList" class="past-list"></div>
+      </aside>
     </main>
 
     <footer>
