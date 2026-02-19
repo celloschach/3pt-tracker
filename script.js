@@ -1,14 +1,16 @@
+// script.js
 document.addEventListener('DOMContentLoaded', () => {
+  const STORAGE_KEY = 'shottracker_v5';
 
-  const STORAGE_KEY = 'shottracker_v4';
+  // load DB
   let db = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
   let historySnapshot = null;
 
-  // Charts
+  // chart instances
   let sessionChartInstance = null;
   let dayChartInstance = null;
 
-  // UI elements
+  // UI refs
   const datePicker = document.getElementById('datePicker');
   const prevDayBtn = document.getElementById('prevDayBtn');
   const nextDayBtn = document.getElementById('nextDayBtn');
@@ -30,19 +32,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const notesInput = document.getElementById('notes');
   const saveNotesBtn = document.getElementById('saveNotesBtn');
 
+  // state
   let selectedDate = new Date().toISOString().slice(0,10);
   let currentSessionId = null;
 
-  // init date picker
+  // init
   datePicker.value = selectedDate;
 
   // helpers
-  function ensureDay(date) {
-    if (!db[date]) db[date] = { date, sessions: [] };
-  }
-
   function persist() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+  }
+
+  function ensureDay(date) {
+    if (!db[date]) db[date] = { date, sessions: [] };
   }
 
   function takeSnapshot() {
@@ -60,48 +63,44 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function formatPct(made, attempts) {
-    return attempts ? (Math.round(made/attempts*100)) + '%' : '0%';
+    return attempts ? Math.round(made/attempts*100) + '%' : '0%';
   }
 
   function totalForDay(day) {
-    const sessions = db[day].sessions || [];
-    const attempts = sessions.reduce((s,a)=>s+a.attempts,0);
-    const made = sessions.reduce((s,a)=>s+a.made,0);
+    const sessions = db[day] && db[day].sessions ? db[day].sessions : [];
+    const attempts = sessions.reduce((acc,s)=>acc + (s.attempts||0), 0);
+    const made = sessions.reduce((acc,s)=>acc + (s.made||0), 0);
     return { attempts, made };
   }
 
   function totalAllDays() {
     const days = Object.keys(db);
     let attempts = 0, made = 0;
-    days.forEach(d=>{
-      db[d].sessions.forEach(s=>{
-        attempts += s.attempts;
-        made += s.made;
-      });
+    days.forEach(d => {
+      db[d].sessions.forEach(s => { attempts += s.attempts || 0; made += s.made || 0; });
     });
     return { attempts, made };
   }
 
-  function computeRollingAverage(dateISO, window=7) {
-    const allDays = Object.keys(db).sort();
-    const idx = allDays.indexOf(dateISO);
+  function computeRollingAverage(dateISO, window = 7) {
+    const keys = Object.keys(db).sort();
+    const idx = keys.indexOf(dateISO);
     if (idx === -1) return null;
-    const start = Math.max(0, idx - (window-1));
-    const slice = allDays.slice(start, idx+1);
-    let made=0, attempts=0;
-    slice.forEach(d=>{
-      db[d].sessions.forEach(s=>{
-        made += s.made; attempts += s.attempts;
-      });
+    const start = Math.max(0, idx - (window - 1));
+    const slice = keys.slice(start, idx + 1);
+    let attempts = 0, made = 0;
+    slice.forEach(d => {
+      db[d].sessions.forEach(s => { attempts += s.attempts || 0; made += s.made || 0; });
     });
-    return attempts ? (Math.round(made/attempts*100)) + '%' : '0%';
+    return attempts ? Math.round(made/attempts*100) + '%' : '0%';
   }
 
-  // UI actions
+  // navigation / date
   function changeDate(newDate) {
     selectedDate = newDate;
     datePicker.value = selectedDate;
     ensureDay(selectedDate);
+    // choose first session if none selected
     const sessions = db[selectedDate].sessions;
     currentSessionId = sessions.length ? sessions[0].id : null;
     render();
@@ -109,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   prevDayBtn.addEventListener('click', () => {
     const d = new Date(selectedDate);
-    d.setDate(d.getDate()-1);
+    d.setDate(d.getDate() - 1);
     const iso = d.toISOString().slice(0,10);
     ensureDay(iso);
     changeDate(iso);
@@ -117,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   nextDayBtn.addEventListener('click', () => {
     const d = new Date(selectedDate);
-    d.setDate(d.getDate()+1);
+    d.setDate(d.getDate() + 1);
     const iso = d.toISOString().slice(0,10);
     ensureDay(iso);
     changeDate(iso);
@@ -129,11 +128,20 @@ document.addEventListener('DOMContentLoaded', () => {
     changeDate(iso);
   });
 
+  // session actions
   newSessionBtn.addEventListener('click', () => {
     takeSnapshot();
     const id = Date.now().toString();
     const name = `Session ${db[selectedDate].sessions.length + 1}`;
-    db[selectedDate].sessions.push({ id, name, attempts:0, made:0, createdAt: Date.now(), notes: '' });
+    db[selectedDate].sessions.push({
+      id,
+      name,
+      attempts: 0,
+      made: 0,
+      createdAt: Date.now(),
+      notes: '',
+      shots: []
+    });
     currentSessionId = id;
     persist();
     render();
@@ -146,11 +154,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   renameSessionBtn.addEventListener('click', () => {
     if (!currentSessionId) return;
-    const session = db[selectedDate].sessions.find(s=>s.id===currentSessionId);
-    const newName = prompt('Neuer Session-Name:', session.name);
-    if (newName===null) return;
+    const s = db[selectedDate].sessions.find(x => x.id === currentSessionId);
+    if (!s) return;
+    const newName = prompt('Neuer Session-Name:', s.name);
+    if (newName === null) return;
     takeSnapshot();
-    session.name = newName.trim() || session.name;
+    s.name = newName.trim() || s.name;
     persist();
     render();
   });
@@ -159,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!currentSessionId) return;
     if (!confirm('Session wirklich löschen?')) return;
     takeSnapshot();
-    db[selectedDate].sessions = db[selectedDate].sessions.filter(s=>s.id!==currentSessionId);
+    db[selectedDate].sessions = db[selectedDate].sessions.filter(s => s.id !== currentSessionId);
     currentSessionId = db[selectedDate].sessions.length ? db[selectedDate].sessions[0].id : null;
     persist();
     render();
@@ -169,8 +178,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!confirm('Ganzen Tag löschen? Diese Aktion ist endgültig.')) return;
     takeSnapshot();
     delete db[selectedDate];
-    const days = Object.keys(db).sort();
-    selectedDate = days.length ? days[days.length-1] : new Date().toISOString().slice(0,10);
+    const keys = Object.keys(db).sort();
+    selectedDate = keys.length ? keys[keys.length - 1] : new Date().toISOString().slice(0,10);
     ensureDay(selectedDate);
     currentSessionId = db[selectedDate].sessions.length ? db[selectedDate].sessions[0].id : null;
     persist();
@@ -179,31 +188,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
   saveNotesBtn.addEventListener('click', () => {
     if (!currentSessionId) return;
+    const s = db[selectedDate].sessions.find(x => x.id === currentSessionId);
+    if (!s) return;
     takeSnapshot();
-    const session = db[selectedDate].sessions.find(s=>s.id===currentSessionId);
-    session.notes = notesInput.value;
+    s.notes = notesInput.value;
     persist();
     render();
   });
 
+  // hit / miss
   hitBtn.addEventListener('click', () => {
     if (!currentSessionId) { alert('Zuerst eine Session erstellen.'); return; }
+    const s = db[selectedDate].sessions.find(x => x.id === currentSessionId);
+    if (!s) return;
     takeSnapshot();
-    const s = db[selectedDate].sessions.find(x=>x.id===currentSessionId);
-    s.attempts++; s.made++;
+    s.attempts = (s.attempts || 0) + 1;
+    s.made = (s.made || 0) + 1;
+    if (!Array.isArray(s.shots)) s.shots = [];
+    s.shots.push(true);
     persist();
     render();
   });
 
   missBtn.addEventListener('click', () => {
     if (!currentSessionId) { alert('Zuerst eine Session erstellen.'); return; }
+    const s = db[selectedDate].sessions.find(x => x.id === currentSessionId);
+    if (!s) return;
     takeSnapshot();
-    const s = db[selectedDate].sessions.find(x=>x.id===currentSessionId);
-    s.attempts++;
+    s.attempts = (s.attempts || 0) + 1;
+    if (!Array.isArray(s.shots)) s.shots = [];
+    s.shots.push(false);
     persist();
     render();
   });
 
+  // undo / export
   undoBtn.addEventListener('click', () => undo());
   undoBtn.disabled = true;
 
@@ -211,12 +230,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function exportCsv() {
     const rows = [['day','sessionId','sessionName','attempts','made','createdAt','notes']];
-    Object.keys(db).sort().forEach(day=>{
-      db[day].sessions.forEach(s=>{
-        rows.push([day, s.id, s.name, s.attempts, s.made, new Date(s.createdAt).toISOString(), (s.notes||'').replace(/\n/g,' ')]);
+    Object.keys(db).sort().forEach(day => {
+      db[day].sessions.forEach(s => {
+        rows.push([
+          day,
+          s.id,
+          s.name,
+          s.attempts || 0,
+          s.made || 0,
+          new Date(s.createdAt).toISOString(),
+          (s.notes || '').replace(/\n/g, ' ')
+        ]);
       });
     });
-    const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -233,16 +260,16 @@ document.addEventListener('DOMContentLoaded', () => {
     ensureDay(selectedDate);
     datePicker.value = selectedDate;
 
-    // sessions dropdown
+    // dropdown
     sessionSelect.innerHTML = '';
-    db[selectedDate].sessions.forEach(s=>{
+    db[selectedDate].sessions.forEach(s => {
       const opt = document.createElement('option');
       opt.value = s.id;
       opt.textContent = s.name;
       sessionSelect.appendChild(opt);
     });
 
-    if (currentSessionId && db[selectedDate].sessions.find(s=>s.id===currentSessionId)) {
+    if (currentSessionId && db[selectedDate].sessions.find(s => s.id === currentSessionId)) {
       sessionSelect.value = currentSessionId;
     } else {
       currentSessionId = db[selectedDate].sessions.length ? db[selectedDate].sessions[0].id : null;
@@ -251,11 +278,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // session stats
     if (currentSessionId) {
-      const s = db[selectedDate].sessions.find(x=>x.id===currentSessionId);
-      sessionStatsEl.textContent = `Session: ${s.made} / ${s.attempts} (${formatPct(s.made,s.attempts)})`;
+      const s = db[selectedDate].sessions.find(x => x.id === currentSessionId);
+      sessionStatsEl.textContent = `Session: ${s.made || 0} / ${s.attempts || 0} (${formatPct(s.made || 0, s.attempts || 0)})`;
       notesInput.value = s.notes || '';
     } else {
-      sessionStatsEl.textContent = `Session: -`;
+      sessionStatsEl.textContent = 'Session: -';
       notesInput.value = '';
     }
 
@@ -263,15 +290,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const dayTotals = totalForDay(selectedDate);
     dayStatsEl.textContent = `Tag: ${dayTotals.made} / ${dayTotals.attempts} (${formatPct(dayTotals.made, dayTotals.attempts)})`;
 
-    // overall stats
+    // total stats
     const all = totalAllDays();
     totalStatsEl.textContent = `Gesamt: ${all.made} / ${all.attempts} (${formatPct(all.made, all.attempts)})`;
 
-    // rolling avg for selected day
-    const rolling = computeRollingAverage(selectedDate,7);
+    // rolling
+    const rolling = computeRollingAverage(selectedDate, 7);
     rollingAvgEl.textContent = `7-Tage Durchschnitt (bis ${selectedDate}): ${rolling || 'N/A'}`;
 
-    // disable/enable buttons based on state
+    // enable/disable UI
     const hasSession = !!currentSessionId;
     renameSessionBtn.disabled = !hasSession;
     deleteSessionBtn.disabled = !hasSession;
@@ -283,86 +310,82 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDayChart();
   }
 
+  // Session chart: shot-by-shot (current session only)
   function renderSessionChart() {
-  // alte Instanz zerstören, falls vorhanden
-  if (sessionChartInstance) {
-    try { sessionChartInstance.destroy(); } catch(e) {}
-    sessionChartInstance = null;
-  }
-
-  // Stelle sicher, dass Canvas existiert
-  if (!sessionChartEl) return;
-
-  // Finde die aktuelle Session
-  const session = db[selectedDate] && db[selectedDate].sessions
-    ? db[selectedDate].sessions.find(s => s.id === currentSessionId)
-    : null;
-
-  // Bereite Labels und Daten vor (shot-by-shot). Wenn keine Würfe vorhanden sind, zeige [0].
-  let labels = [];
-  let data = [];
-
-  if (session && Array.isArray(session.shots) && session.shots.length > 0) {
-    let made = 0;
-    let attempts = 0;
-    session.shots.forEach((shot, i) => {
-      attempts++;
-      if (shot) made++;
-      data.push(Math.round((made / attempts) * 100));
-      labels.push(i + 1);
-    });
-  } else {
-    labels = [0];
-    data = [0];
-  }
-
-  // Erstelle einfachen Linien-Chart wie im ersten Script
-  sessionChartInstance = new Chart(sessionChartEl, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: 'Session Quote %',
-        data: data,
-        fill: false,
-        tension: 0.2,
-        pointRadius: 3,
-        borderWidth: 2
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: {
-          min: 0,
-          max: 100,
-          title: { display: true, text: 'Quote %' }
-        },
-        x: {
-          title: { display: true, text: 'Wurf #' }
-        }
-      },
-      plugins: { legend: { display: false } }
+    if (sessionChartInstance) {
+      try { sessionChartInstance.destroy(); } catch(e) {}
+      sessionChartInstance = null;
     }
-  });
-}
 
+    const ctx = sessionChartEl.getContext('2d');
 
+    const session = db[selectedDate] && db[selectedDate].sessions
+      ? db[selectedDate].sessions.find(s => s.id === currentSessionId)
+      : null;
+
+    let labels = [];
+    let data = [];
+
+    if (session && Array.isArray(session.shots) && session.shots.length > 0) {
+      let made = 0;
+      let attempts = 0;
+      session.shots.forEach((shot, i) => {
+        attempts++;
+        if (shot) made++;
+        data.push(Math.round(made / attempts * 100));
+        labels.push(i + 1);
+      });
+    } else {
+      labels = [0];
+      data = [0];
+    }
+
+    sessionChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Session Quote %',
+          data: data,
+          fill: false,
+          tension: 0.2,
+          pointRadius: 3,
+          borderWidth: 2
+        }]
+      },
+      options: {
+        animation: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { min: 0, max: 100, title: { display: true, text: 'Quote %' } },
+          x: { ticks: { autoSkip: false }, title: { display: true, text: 'Wurf #' } }
+        },
+        plugins: { legend: { display: false } }
+      }
+    });
+  }
+
+  // Day chart: percent per day (simple line)
   function renderDayChart() {
-    if (dayChartInstance) dayChartInstance.destroy();
+    if (dayChartInstance) {
+      try { dayChartInstance.destroy(); } catch(e) {}
+      dayChartInstance = null;
+    }
+
+    const ctx = dayChartEl.getContext('2d');
     const dayKeys = Object.keys(db).sort();
     const pctData = dayKeys.map(d => {
       const t = totalForDay(d);
-      return t.attempts ? Math.round(t.made/t.attempts*100) : 0;
+      return t.attempts ? Math.round(t.made / t.attempts * 100) : 0;
     });
 
-    dayChartInstance = new Chart(dayChartEl, {
+    dayChartInstance = new Chart(ctx, {
       type: 'line',
       data: {
         labels: dayKeys,
         datasets: [{
-          label: 'Tages Quote %',
+          label: 'Tagesquote %',
           data: pctData,
           fill: false,
           tension: 0.2,
@@ -371,34 +394,45 @@ document.addEventListener('DOMContentLoaded', () => {
         }]
       },
       options: {
+        animation: false,
         responsive: true,
-        scales: {
-          y: {
-            min: 0,
-            max: 100,
-            title: { display: true, text: 'Quote %' }
-          }
-        },
+        maintainAspectRatio: false,
+        scales: { y: { min: 0, max: 100, title: { display: true, text: 'Quote %' } } },
         plugins: { legend: { display: false } }
       }
     });
   }
-  // --- /SIMPLE CHARTS ---
 
-  // initial boot
-  (function boot(){
+  // boot: migrate old data and ensure at least one session today
+  (function boot() {
+    // migrate: ensure shots arrays exist for all sessions
+    Object.keys(db).forEach(dayKey => {
+      db[dayKey].sessions.forEach(s => {
+        if (!Array.isArray(s.shots)) s.shots = [];
+        s.attempts = s.attempts || 0;
+        s.made = s.made || 0;
+        s.name = s.name || ('Session ' + (Math.random().toString(36).slice(2,6)));
+      });
+    });
+
     ensureDay(selectedDate);
+
     if (!db[selectedDate].sessions.length) {
       const id = Date.now().toString();
-      db[selectedDate].sessions.push({ id, name:'Session 1', attempts:0, made:0, createdAt: Date.now(), notes:'' });
+      db[selectedDate].sessions.push({ id, name: 'Session 1', attempts: 0, made: 0, createdAt: Date.now(), notes: '', shots: [] });
       currentSessionId = id;
       persist();
     } else {
       currentSessionId = db[selectedDate].sessions[0].id;
     }
+
     render();
   })();
 
-  // expose for debug if needed
-  window._shottracker = { get db(){ return db; }, persist, exportCsv: exportCsv };
+  // expose for debugging
+  window._shottracker = {
+    get db() { return db; },
+    persist,
+    exportCsv
+  };
 });
