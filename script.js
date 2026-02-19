@@ -283,34 +283,40 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDayChart();
   }
 
-  // --- SIMPLE CHARTS (wie erstes script) ---
   function renderSessionChart() {
+  // alte Instanz zerstören, falls vorhanden
+  if (sessionChartInstance) {
+    try { sessionChartInstance.destroy(); } catch(e) {}
+    sessionChartInstance = null;
+  }
 
-  if (sessionChartInstance) sessionChartInstance.destroy();
-  if (!currentSessionId) return;
+  // Stelle sicher, dass Canvas existiert
+  if (!sessionChartEl) return;
 
-  const session = db[selectedDate].sessions.find(s => s.id === currentSessionId);
-  if (!session || !session.shots || session.shots.length === 0) return;
+  // Finde die aktuelle Session
+  const session = db[selectedDate] && db[selectedDate].sessions
+    ? db[selectedDate].sessions.find(s => s.id === currentSessionId)
+    : null;
 
-  let made = 0;
-  let attempts = 0;
+  // Bereite Labels und Daten vor (shot-by-shot). Wenn keine Würfe vorhanden sind, zeige [0].
+  let labels = [];
+  let data = [];
 
-  const data = [];
-  const labels = [];
+  if (session && Array.isArray(session.shots) && session.shots.length > 0) {
+    let made = 0;
+    let attempts = 0;
+    session.shots.forEach((shot, i) => {
+      attempts++;
+      if (shot) made++;
+      data.push(Math.round((made / attempts) * 100));
+      labels.push(i + 1);
+    });
+  } else {
+    labels = [0];
+    data = [0];
+  }
 
-  session.shots.forEach((shot, i) => {
-
-    attempts++;
-
-    if (shot) made++;
-
-    const quote = Math.round((made / attempts) * 100);
-
-    data.push(quote);
-    labels.push(i + 1);
-
-  });
-
+  // Erstelle einfachen Linien-Chart wie im ersten Script
   sessionChartInstance = new Chart(sessionChartEl, {
     type: 'line',
     data: {
@@ -318,34 +324,26 @@ document.addEventListener('DOMContentLoaded', () => {
       datasets: [{
         label: 'Session Quote %',
         data: data,
+        fill: false,
         tension: 0.2,
-        pointRadius: 2,
+        pointRadius: 3,
         borderWidth: 2
       }]
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       scales: {
         y: {
           min: 0,
           max: 100,
-          title: {
-            display: true,
-            text: 'Quote %'
-          }
+          title: { display: true, text: 'Quote %' }
         },
         x: {
-          title: {
-            display: true,
-            text: 'Wurf'
-          }
+          title: { display: true, text: 'Wurf #' }
         }
       },
-      plugins: {
-        legend: {
-          display: false
-        }
-      }
+      plugins: { legend: { display: false } }
     }
   });
 }
