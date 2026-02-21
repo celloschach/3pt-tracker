@@ -9,8 +9,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const STORAGE_KEY = 'shottracker_v6';
 
   // load DB
-  let db = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-  let historySnapshot = null;
+  let db = null; // wird durch Supabase geladen
+  db = await loadAllSessions(); // deine Supabase Load API
+  let historySnapshot = JSON.parse(JSON.stringify(db));
 
   // chart instances
   let sessionChartInstance = null;
