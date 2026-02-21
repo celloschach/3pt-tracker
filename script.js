@@ -5,7 +5,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_y-qvrQF5rl60FkBWo5ongg_2VbBS1qO";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Prüfe Auth, ansonsten weiterleiten
+  // Auth prüfen, sonst zur Login-Seite
   try {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) {
@@ -91,12 +91,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const days = Object.keys(db);
     let attempts = 0, made = 0;
     days.forEach(d => {
-      db[d].sessions.forEach(s => { attempts += s.attempts || 0; made += s.made || 0; });
+      (db[d].sessions || []).forEach(s => { attempts += s.attempts || 0; made += s.made || 0; });
     });
     return { attempts, made };
   }
 
   function computeRollingAverage(dateISO, window = 7) {
+    // compute rolling avg over calendar days present in db (keeps days with 0 attempts too)
     const keys = Object.keys(db).sort();
     const idx = keys.indexOf(dateISO);
     if (idx === -1) return null;
@@ -104,7 +105,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const slice = keys.slice(start, idx + 1);
     let attempts = 0, made = 0;
     slice.forEach(d => {
-      db[d].sessions.forEach(s => { attempts += s.attempts || 0; made += s.made || 0; });
+      (db[d].sessions || []).forEach(s => { attempts += s.attempts || 0; made += s.made || 0; });
     });
     return attempts ? Math.round(made/attempts*100) + '%' : '0%';
   }
@@ -245,7 +246,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function exportCsv() {
     const rows = [['day','sessionId','sessionName','attempts','made','createdAt','notes']];
     Object.keys(db).sort().forEach(day => {
-      db[day].sessions.forEach(s => {
+      (db[day].sessions || []).forEach(s => {
         rows.push([
           day,
           s.id,
@@ -269,31 +270,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     URL.revokeObjectURL(url);
   }
 
-  // render past days list
+  // render past days list (nur Tage mit mindestens 1 Wurf)
   function renderPastDaysList() {
     pastDaysListEl.innerHTML = '';
-    const keys = Object.keys(db).sort().reverse(); // newest first
+
+    const keys = Object.keys(db)
+      .sort()
+      .reverse()
+      .filter(day => {
+        const totals = totalForDay(day);
+        return totals.attempts > 0; // nur Tage mit Würfen
+      });
+
     if (keys.length === 0) {
-      pastDaysListEl.textContent = 'Noch keine Einträge';
+      pastDaysListEl.textContent = 'Noch keine gültigen Einträge';
       return;
     }
+
     keys.forEach(day => {
       const totals = totalForDay(day);
+
       const item = document.createElement('div');
       item.className = 'past-item';
+
       const btn = document.createElement('button');
       btn.textContent = day;
       btn.dataset.day = day;
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', e => {
         changeDate(e.target.dataset.day);
       });
+
       const count = document.createElement('div');
       count.className = 'count';
       count.textContent = `${totals.attempts} Würfe`;
+
       item.appendChild(btn);
       item.appendChild(count);
-      // highlight current
-      if (day === selectedDate) item.style.outline = '2px solid rgba(46,204,113,0.12)';
+
+      if (day === selectedDate) {
+        item.style.outline = '2px solid rgba(46,204,113,0.12)';
+      }
+
       pastDaysListEl.appendChild(item);
     });
   }
@@ -305,23 +322,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // dropdown
     sessionSelect.innerHTML = '';
-    db[selectedDate].sessions.forEach(s => {
+    (db[selectedDate].sessions || []).forEach(s => {
       const opt = document.createElement('option');
       opt.value = s.id;
       opt.textContent = s.name;
       sessionSelect.appendChild(opt);
     });
 
-    if (currentSessionId && db[selectedDate].sessions.find(s => s.id === currentSessionId)) {
+    if (currentSessionId && (db[selectedDate].sessions || []).find(s => s.id === currentSessionId)) {
       sessionSelect.value = currentSessionId;
     } else {
-      currentSessionId = db[selectedDate].sessions.length ? db[selectedDate].sessions[0].id : null;
+      currentSessionId = (db[selectedDate].sessions && db[selectedDate].sessions.length) ? db[selectedDate].sessions[0].id : null;
       sessionSelect.value = currentSessionId;
     }
 
     // session stats
     if (currentSessionId) {
-      const s = db[selectedDate].sessions.find(x => x.id === currentSessionId);
+      const s = (db[selectedDate].sessions || []).find(x => x.id === currentSessionId);
       sessionStatsEl.textContent = `Session: ${s.made || 0} / ${s.attempts || 0} (${formatPct(s.made || 0, s.attempts || 0)})`;
       notesInput.value = s.notes || '';
     } else {
@@ -361,6 +378,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       sessionChartInstance = null;
     }
 
+    if (!sessionChartEl) return;
     const ctx = sessionChartEl.getContext('2d');
 
     const session = db[selectedDate] && db[selectedDate].sessions
@@ -384,7 +402,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       data = [0];
     }
 
-    // determine tick step
     const shotCount = (labels.length === 1 && labels[0] === 0) ? 0 : labels.length;
     let step = 1;
     if (shotCount > 50) step = 10;
@@ -414,7 +431,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             ticks: {
               autoSkip: false,
               callback: function(value, index) {
-                // show last label always
                 const lastIndex = labels.length - 1;
                 if (index === lastIndex) return value;
                 if (step <= 1) return value;
@@ -429,27 +445,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Day chart: percent per day (simple line)
+  // Day chart: percent per day (nur Tage mit mindestens 1 Wurf)
   function renderDayChart() {
     if (dayChartInstance) {
       try { dayChartInstance.destroy(); } catch(e) {}
       dayChartInstance = null;
     }
 
+    if (!dayChartEl) return;
     const ctx = dayChartEl.getContext('2d');
-    const dayKeys = Object.keys(db).sort();
+
+    const dayKeys = Object.keys(db)
+      .sort()
+      .filter(d => {
+        const t = totalForDay(d);
+        return t.attempts > 0; // nur relevante Tage
+      });
+
     const pctData = dayKeys.map(d => {
       const t = totalForDay(d);
       return t.attempts ? Math.round(t.made / t.attempts * 100) : 0;
     });
 
+    // Wenn keine Tage vorhanden sind, lege einen Platzhalter an, damit Chart.js nicht crasht
+    const labels = dayKeys.length ? dayKeys : ['-'];
+    const data = dayKeys.length ? pctData : [0];
+
     dayChartInstance = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: dayKeys,
+        labels: labels,
         datasets: [{
           label: 'Tagesquote %',
-          data: pctData,
+          data: data,
           fill: false,
           tension: 0.2,
           pointRadius: 3,
@@ -471,7 +499,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // migrate: ensure structure
     Object.keys(db).forEach(dayKey => {
       if (!db[dayKey].sessions) db[dayKey].sessions = [];
-      db[dayKey].sessions.forEach(s => {
+      (db[dayKey].sessions || []).forEach(s => {
         if (!Array.isArray(s.shots)) s.shots = [];
         s.attempts = s.attempts || 0;
         s.made = s.made || 0;
