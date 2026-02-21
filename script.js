@@ -38,7 +38,47 @@ document.addEventListener('DOMContentLoaded', () => {
   const notesInput = document.getElementById('notes');
   const saveNotesBtn = document.getElementById('saveNotesBtn');
   const pastDaysListEl = document.getElementById('pastDaysList');
+  
+// Registrierung
+async function register(email, password) {
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) console.error("Error registering:", error.message);
+  else console.log("User registered:", data.user);
+}
 
+// Login
+async function login(email, password) {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) console.error("Error logging in:", error.message);
+  else console.log("User logged in:", data.user);
+}
+
+// Aktuell eingeloggten User auslesen
+async function getCurrentUser() {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user;
+}
+// Session speichern (deine API-Funktion)
+async function saveSession(session) {
+  const user = await getCurrentUser();
+  if (!user) {
+    console.error("No logged-in user");
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("sessions")
+    .insert([{
+      user_id: user.id,       // FK auf auth.users
+      date: session.date,     // Datum der Session
+      attempts: session.attempts, // Anzahl Würfe
+      made: session.made,         // Anzahl Treffer
+      shots: session.shots        // Details der Würfe, z.B. [{time:0, made:true},...]
+    }]);
+
+  if (error) console.error("Error saving session:", error.message);
+  else console.log("Session saved:", data);
+}
   // state
   let selectedDate = new Date().toISOString().slice(0,10);
   let currentSessionId = null;
