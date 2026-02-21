@@ -269,34 +269,49 @@ document.addEventListener('DOMContentLoaded', async () => {
     URL.revokeObjectURL(url);
   }
 
-  // render past days list
-  function renderPastDaysList() {
-    pastDaysListEl.innerHTML = '';
-    const keys = Object.keys(db).sort().reverse(); // newest first
-    if (keys.length === 0) {
-      pastDaysListEl.textContent = 'Noch keine Einträge';
-      return;
-    }
-    keys.forEach(day => {
+function renderPastDaysList() {
+  pastDaysListEl.innerHTML = '';
+
+  const keys = Object.keys(db)
+    .sort()
+    .reverse()
+    .filter(day => {
       const totals = totalForDay(day);
-      const item = document.createElement('div');
-      item.className = 'past-item';
-      const btn = document.createElement('button');
-      btn.textContent = day;
-      btn.dataset.day = day;
-      btn.addEventListener('click', (e) => {
-        changeDate(e.target.dataset.day);
-      });
-      const count = document.createElement('div');
-      count.className = 'count';
-      count.textContent = `${totals.attempts} Würfe`;
-      item.appendChild(btn);
-      item.appendChild(count);
-      // highlight current
-      if (day === selectedDate) item.style.outline = '2px solid rgba(46,204,113,0.12)';
-      pastDaysListEl.appendChild(item);
+      return totals.attempts > 0; // nur Tage mit Würfen
     });
+
+  if (keys.length === 0) {
+    pastDaysListEl.textContent = 'Noch keine gültigen Einträge';
+    return;
   }
+
+  keys.forEach(day => {
+    const totals = totalForDay(day);
+
+    const item = document.createElement('div');
+    item.className = 'past-item';
+
+    const btn = document.createElement('button');
+    btn.textContent = day;
+    btn.dataset.day = day;
+    btn.addEventListener('click', e => {
+      changeDate(e.target.dataset.day);
+    });
+
+    const count = document.createElement('div');
+    count.className = 'count';
+    count.textContent = `${totals.attempts} Würfe`;
+
+    item.appendChild(btn);
+    item.appendChild(count);
+
+    if (day === selectedDate) {
+      item.style.outline = '2px solid rgba(46,204,113,0.12)';
+    }
+
+    pastDaysListEl.appendChild(item);
+  });
+}
 
   // rendering
   function render() {
@@ -437,11 +452,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const ctx = dayChartEl.getContext('2d');
-    const dayKeys = Object.keys(db).sort();
-    const pctData = dayKeys.map(d => {
-      const t = totalForDay(d);
-      return t.attempts ? Math.round(t.made / t.attempts * 100) : 0;
-    });
+   const dayKeys = Object.keys(db)
+  .sort()
+  .filter(d => {
+    const t = totalForDay(d);
+    return t.attempts > 0; // nur relevante Tage
+  });
 
     dayChartInstance = new Chart(ctx, {
       type: 'line',
