@@ -1,4 +1,10 @@
 // script.js
+// Supabase initialisieren
+const SUPABASE_URL = "https://zhfmstklaclsesndnamm.supabase.co";        // Project URL aus Supabase
+const SUPABASE_ANON_KEY = "sb_publishable_y-qvrQF5rl60FkBWo5ongg_2VbBS1qO";       // Publishable / anon key
+
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 document.addEventListener('DOMContentLoaded', () => {
   const STORAGE_KEY = 'shottracker_v6';
 
