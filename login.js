@@ -1,25 +1,49 @@
+// login.js
+// Konfiguration Supabase
 const SUPABASE_URL = "https://zhfmstklaclsesndnamm.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_y-qvrQF5rl60FkBWo5ongg_2VbBS1qO";
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-async function register() {
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-  const { data, error } = await supabase.auth.signUp({ email, password });
-  if (error) return alert(error.message);
-  alert("Registriert! Bitte einloggen.");
-}
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-async function login() {
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return alert(error.message);
-  window.location.href = "index.html";
-}
+document.addEventListener('DOMContentLoaded', () => {
+  const emailInput = document.getElementById('email');
+  const passInput = document.getElementById('password');
+  const loginBtn = document.getElementById('loginBtn');
+  const signupBtn = document.getElementById('signupBtn');
+  const msgEl = document.getElementById('msg');
 
-// falls User schon eingeloggt, direkt weiterleiten
-(async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) window.location.href = "index.html";
-})();
+  loginBtn.addEventListener('click', async () => {
+    msgEl.textContent = '';
+    const email = emailInput.value.trim();
+    const password = passInput.value;
+    if (!email || !password) { msgEl.textContent = 'Bitte Email und Passwort angeben.'; return; }
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) {
+      msgEl.textContent = error.message || 'Login fehlgeschlagen';
+      return;
+    }
+    // Erfolg: weiterleiten
+    window.location.href = 'index.html';
+  });
+
+  signupBtn.addEventListener('click', async () => {
+    msgEl.textContent = '';
+    const email = emailInput.value.trim();
+    const password = passInput.value;
+    if (!email || !password) { msgEl.textContent = 'Bitte Email und Passwort angeben.'; return; }
+
+    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+    if (error) {
+      msgEl.textContent = error.message || 'Registrierung fehlgeschlagen';
+      return;
+    }
+    msgEl.textContent = 'Registriert. Bitte Email bestätigen (falls erforderlich) und dann einloggen.';
+  });
+
+  // Wenn bereits eingeloggt -> weiterleiten
+  (async () => {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (user) window.location.href = 'index.html';
+  })();
+});
