@@ -75,6 +75,35 @@ async function saveSession(session) {
       made: session.made,         // Anzahl Treffer
       shots: session.shots        // Details der Würfe, z.B. [{time:0, made:true},...]
     }]);
+  // Sessions eines bestimmten Tages laden
+async function loadSessionsByDate(selectedDate) {
+  const user = await getCurrentUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("sessions")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("date", selectedDate);
+
+  if (error) console.error("Error loading sessions:", error.message);
+  return data;
+}
+
+// Alle Sessions eines Users laden (für Graphen)
+async function loadAllSessions() {
+  const user = await getCurrentUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("sessions")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("date", { ascending: true });
+
+  if (error) console.error("Error loading sessions:", error.message);
+  return data;
+}
 
   if (error) console.error("Error saving session:", error.message);
   else console.log("Session saved:", data);
