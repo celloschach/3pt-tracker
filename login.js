@@ -1,6 +1,5 @@
-// Supabase initialisieren
-const SUPABASE_URL = "DEINE_PROJECT_URL";
-const SUPABASE_ANON_KEY = "DEIN_ANON_KEY";
+const SUPABASE_URL = "https://zhfmstklaclsesndnamm.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_y-qvrQF5rl60FkBWo5ongg_2VbBS1qO";
 const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 async function register() {
@@ -16,12 +15,10 @@ async function login() {
   const password = document.getElementById("password").value;
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return alert(error.message);
-
-  // Nach Login zur App weiterleiten
   window.location.href = "index.html";
 }
 
-// Prüfen, ob User schon eingeloggt ist
+// falls User schon eingeloggt, direkt weiterleiten
 (async () => {
   const { data: { user } } = await supabase.auth.getUser();
   if (user) window.location.href = "index.html";
