@@ -1,16 +1,32 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>3PT Tracker Login</title>
+
+  <!-- Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="login.js"></script>
+
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;background:#0f1720;color:#e6eef6;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
+    .card{background:#0b1220;padding:24px;border-radius:8px;width:320px}
+    input{width:100%;padding:10px;margin:8px 0;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
+    button{width:100%;padding:10px;margin-top:8px;border-radius:6px;border:none;background:#2ecc71;color:#04210b;font-weight:700;cursor:pointer}
+    .row{display:flex;gap:8px}
+    .secondary{background:#16324a;color:#cfe8ff}
+  </style>
 </head>
 <body>
-  <h1>3PT Tracker Login</h1>
-  <input id="email" placeholder="Email" type="email">
-  <input id="password" placeholder="Passwort" type="password">
-  <button onclick="login()">Login</button>
-  <button onclick="register()">Sign Up</button>
+  <div class="card">
+    <h2 style="margin:0 0 12px 0;">3PT Tracker — Login</h2>
+    <input id="email" placeholder="Email" type="email" autocomplete="username" />
+    <input id="password" placeholder="Passwort" type="password" autocomplete="current-password" />
+    <button id="loginBtn">Login</button>
+    <button id="signupBtn" class="secondary">Sign Up</button>
+    <div id="msg" style="margin-top:8px;color:#f2a654"></div>
+  </div>
+
+  <script src="login.js"></script>
 </body>
 </html>
