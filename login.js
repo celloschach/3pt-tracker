@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
       msgEl.textContent = error.message || 'Registrierung fehlgeschlagen';
       return;
     }
-    msgEl.textContent = 'Registriert. Bitte Email bestätigen (falls erforderlich) und dann einloggen.';
+    msgEl.textContent = 'Registriert.  Jetzt Einloggen.';
   });
 
   // Wenn bereits eingeloggt -> weiterleiten
