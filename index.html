@@ -4,39 +4,25 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>3PT Tracker</title>
-  <link rel="stylesheet" href="style.css" />
 
   <!-- Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- Login-Check und dynamisches Laden von script.js -->
-  <script>
-    const SUPABASE_URL = "https://zhfmstklaclsesndnamm.supabase.co";
-    const SUPABASE_ANON_KEY = "sb_publishable_y-qvrQF5rl60FkBWo5ongg_2VbBS1qO";
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        window.location.href = "login.html";
-        return;
-      }
-      // erst wenn User da, script.js laden
-      const s = document.createElement('script');
-      s.src = 'script.js';
-      document.head.appendChild(s);
-    })();
-  </script>
-
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <button onclick="logout()">Logout</button>
-
   <div class="container">
     <header>
-      <h1>3PT Tracker</h1>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h1>3PT Tracker</h1>
+        <div>
+          <button id="logoutBtn">Logout</button>
+        </div>
+      </div>
+
       <div class="top-controls">
         <div class="date-controls">
           <button id="prevDayBtn" title="Vorheriger Tag">◀</button>
@@ -94,5 +80,7 @@
       </aside>
     </main>
   </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
