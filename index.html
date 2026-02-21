@@ -12,10 +12,13 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <input id="email" placeholder="Email">
-<input id="password" type="password" placeholder="Password">
-<button onclick="register(email.value, password.value)">Sign Up</button>
-<button onclick="login(email.value, password.value)">Login</button>
+  <button onclick="logout()">Logout</button>
+<script>
+async function logout() {
+  await supabase.auth.signOut();
+  window.location.href = "login.html";
+}
+</script>
   <div class="container">
     <header>
       <h1>3PT Tracker</h1>
